@@ -1,0 +1,36 @@
+{% extends "sentry/groups/details.html" %}
+
+{% load i18n %}
+
+{% block title %}{% trans "Create Maniphest Task" %} | {{ block.super }}{% endblock %}
+
+{% block inner %}
+    <div class="span12">
+        <div class="page-header">
+            <h3>Create Maniphest Task</h3>
+        </div>
+        <p>Use this form to create a new task in Maniphest.</p>
+        {% if form.errors %}
+            <div class="alert-message error">{% trans "Please correct the errors below." %}</div>
+        {% endif %}
+
+        <form class="form-stacked" action="" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next }}" />
+            <fieldset>
+                {% for field in form %}
+                    <div class="clearfix{% if field.errors %} error{% endif %}">
+                        {{ field.label_tag }}
+                        <div class="input">{{ field }}</div>
+                        {% if field.help_text %}
+                            <span class="help-block">{{ field.help_text }}</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </fieldset>
+            <p class="actions">
+                <button type="submit" class="btn primary">{% trans "Create Task" %}</button>
+            </p>
+        </form>
+    </div>
+{% endblock %}

@@ -1,39 +1,37 @@
 """
-sentry_phabricator
-~~~~~~~~~~~~~~~~~~
+sentry_phabricator.models
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:copyright: (c) 2010 by the Sentry Team, see AUTHORS for more details.
+:copyright: (c) 2011 by the Sentry Team, see AUTHORS for more details.
 :license: BSD, see LICENSE for more details.
 """
 
 from django import forms
 from django.core.context_processors import csrf
 from django.core.urlresolvers import reverse
-from django.http import HttpResponseRedirect
-from django.shortcuts import render_to_response
 from django.utils.safestring import mark_safe
 
 from sentry.models import GroupMeta, ProjectOption
-from sentry.plugins import GroupActionProvider
-from sentry.plugins.sentry_redmine import conf
+from sentry.plugins import Plugin
 from sentry.utils import json
 
+import httplib
 import phabricator
-import urllib2
 
 
 class ManiphestTaskForm(forms.Form):
-    title = forms.CharField(max_length=200)
-    assigned_to = forms.CharField()
-    projects = forms.CharField()
-    description = forms.CharField(widget=forms.Textarea())
+    title = forms.CharField(max_length=200, widget=forms.TextInput(attrs={'class': 'span10'}))
+    description = forms.CharField(widget=forms.Textarea(attrs={'class': 'span10'}))
+    # assigned_to = forms.CharField()
+    # projects = forms.CharField()
 
 
-class CreateManiphestTask(GroupActionProvider):
+class CreateManiphestTask(Plugin):
     title = 'Create Maniphest Task'
 
     def configure(self, project):
         # check all options are set
+        Plugin.configure(self, project)
         config = {}
         for option in ('host', 'certificate', 'username'):
             try:
@@ -42,76 +40,79 @@ class CreateManiphestTask(GroupActionProvider):
                 self.enabled = False
                 return
             config[option] = value
-        self.enabled = True
         self.config = config
         self.api = phabricator.Phabricator(**config)
-        # api.user.whoami().userName
 
-    def actions(self, request, action_list, project, group):
+    def actions(self, group, action_list, **kwargs):
         if not GroupMeta.objects.get_value(group, 'phabricator:tid', None):
-            action_list.append((self.title, self.__class__.get_url(project.pk, group.pk)))
+            action_list.append((self.title, self.get_url(group)))
         return action_list
 
-    def view(self, request, group):
-        form = ManiphestTaskForm(request.POST or None, initial={
-            'description': 'Sentry Message: %s\n\n<pre>%s</pre>' % (
-                request.build_absolute_uri(group.get_absolute_url()),
-                group.message,
-            ),
-            'title': group.error(),
+    def _get_group_body(self, group, event, **kwargs):
+        interface = event.interfaces.get('sentry.interfaces.Stacktrace')
+        if interface:
+            return interface.to_string(event)
+        return
+
+    def _get_group_description(self, group, event):
+        output = [
+            'Event:',
+            self.request.build_absolute_uri(group.get_absolute_url()),
+            '',
+            'Details:',
+            '```',
+            self._get_group_body(group, event),
+            '```',
+        ]
+        return '\n'.join(output)
+
+    def _get_group_title(self, group, event):
+        return event.error()
+
+    def view(self, group, **kwargs):
+        event = group.get_latest_event()
+        form = ManiphestTaskForm(self.request.POST or None, initial={
+            'description': self._get_group_description(group, event),
+            'title': self._get_group_title(group, event),
         })
         if form.is_valid():
-            # data = json.dumps({
-            #     'key': conf.REDMINE_API_KEY,
-            #     'issue': {
-            #         'subject': form.cleaned_data['subject'],
-            #         'description': form.cleaned_data['description'],
-            #     }
-            # })
-            # url = conf.REDMINE_URL + '/projects/' + conf.REDMINE_PROJECT_SLUG + '/issues.json'
-
-            # req = urllib2.Request(url, urllib.urlencode({
-            #     'key': conf.REDMINE_API_KEY,
-            # }), headers={
-            #     'Content-type': 'application/json',
-            # })
+            api = self.api
             try:
-                response = urllib2.urlopen(req, data).read()
-            except urllib2.HTTPError, e:
-                if e.code == 422:
-                    data = json.loads(e.read())
-                    form.errors['__all__'] = 'Missing or invalid data'
-                    for message in data:
-                        for k, v in message.iteritems():
-                            if k in form.fields:
-                                form.errors.setdefault(k, []).append(v)
-                            else:
-                                form.errors['__all__'] += '; %s: %s' % (k, v)
-                else:
-                    form.errors['__all__'] = 'Bad response from Redmine: %s %s' % (e.code, e.msg)
-            except urllib2.URLError, e:
-                form.errors['__all__'] = 'Unable to reach Redmine host: %s' % (e.reason,)
+                response = api.maniphest.createtask(
+                    title=form.cleaned_data['title'],
+                    description=form.cleaned_data['description'],
+                )
+            except phabricator.APIError, e:
+                # if e.code == 422:
+                #     data = json.loads(e.read())
+                #     form.errors['__all__'] = 'Missing or invalid data'
+                #     for message in data:
+                #         for k, v in message.iteritems():
+                #             if k in form.fields:
+                #                 form.errors.setdefault(k, []).append(v)
+                #             else:
+                #                 form.errors['__all__'] += '; %s: %s' % (k, v)
+                # else:
+                form.errors['__all__'] = 'Bad response from Phabricator: %s %s' % (e.code, e.msg)
+            except httplib.HTTPError, e:
+                form.errors['__all__'] = 'Unable to reach Phabricator host: %s' % (e.reason,)
             else:
                 data = json.loads(response)
                 GroupMeta.objects.set_value(group, 'phabricator:tid', data['issue']['id'])
-                return HttpResponseRedirect(reverse('sentry-group', args=[group.project_id, group.pk]))
+                return self.redirect(reverse('sentry-group', args=[group.project_id, group.pk]))
 
         context = {
-            'request': request,
-            'group': group,
             'form': form,
-            'global_errors': form.errors.get('__all__'),
-            'BASE_TEMPLATE': 'sentry/groups/details.html',
         }
-        context.update(csrf(request))
+        context.update(csrf(self.request))
 
-        return render_to_response('sentry_phabricator/create_maniphest_task.html', context)
+        return self.render('sentry_phabricator/create_maniphest_task.html', context)
 
-    def tags(self, request, tags, project, group):
+    def tags(self, group, tag_list, **kwargs):
         task_id = GroupMeta.objects.get_value(group, 'phabricator:tid', None)
         if task_id:
-            tags.append(mark_safe('<a href="%s">#%s</a>' % (
-                '%s/issues/%s' % (conf.PHABRICATOR_URL, task_id),
+            tag_list.append(mark_safe('<a href="%s">#%s</a>' % (
+                'http://%s/issues/%s' % (self.config['host'], task_id),
                 task_id,
             )))
-        return tags
+        return tag_list

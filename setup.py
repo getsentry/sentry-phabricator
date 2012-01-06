@@ -3,6 +3,8 @@
 sentry-phabricator
 ==================
 
+:copyright: (c) 2011 by the Sentry Team, see AUTHORS for more details.
+:license: BSD, see LICENSE for more details.
 """
 from setuptools import setup, find_packages
 
@@ -25,6 +27,7 @@ setup(
     url='http://github.com/dcramer/sentry-phabricator',
     description='A Sentry extension which integrates with Phabricator.',
     long_description=__doc__,
+    license='BSD',
     packages=find_packages(exclude=['tests']),
     zip_safe=False,
     install_requires=install_requires,
