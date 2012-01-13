@@ -31,6 +31,22 @@ class PhabricatorOptionsForm(forms.Form):
     username = forms.CharField(widget=forms.TextInput(attrs={'class': 'span10'}))
     certificate = forms.CharField(widget=forms.Textarea(attrs={'class': 'span10'}))
 
+    def clean(self):
+        config = self.cleaned_data
+        api = phabricator.Phabricator(
+            host=urlparse.urljoin(config['host'], 'api/'),
+            username=config['username'],
+            certificate=config['certificate'],
+        )
+        try:
+            api.user.whoami()
+        except phabricator.APIError, e:
+            raise forms.ValidationError('%s %s' % (e.code, e.message))
+        except httplib.HTTPException, e:
+            raise forms.ValidationError('Unable to reach Phabricator host: %s' % (e.reason,))
+        except Exception, e:
+            raise forms.ValidationError('Unhandled error from Phabricator: %s' % (e,))
+
 
 class CreateManiphestTask(Plugin):
     title = 'Phabricator'
@@ -52,9 +68,9 @@ class CreateManiphestTask(Plugin):
             config[option] = value
         self.config = config
         self.api = phabricator.Phabricator(
-            host=urlparse.urljoin(config['host'], 'api'),
-            certificate=config['certificate'],
+            host=urlparse.urljoin(config['host'], 'api/'),
             username=config['username'],
+            certificate=config['certificate'],
         )
 
     def actions(self, group, action_list, **kwargs):
@@ -97,17 +113,7 @@ class CreateManiphestTask(Plugin):
                     description=form.cleaned_data['description'],
                 )
             except phabricator.APIError, e:
-                # if e.code == 422:
-                #     data = json.loads(e.read())
-                #     form.errors['__all__'] = 'Missing or invalid data'
-                #     for message in data:
-                #         for k, v in message.iteritems():
-                #             if k in form.fields:
-                #                 form.errors.setdefault(k, []).append(v)
-                #             else:
-                #                 form.errors['__all__'] += '; %s: %s' % (k, v)
-                # else:
-                form.errors['__all__'] = 'Bad response from Phabricator: %s %s' % (e.code, e.msg)
+                form.errors['__all__'] = '%s %s' % (e.code, e.message)
             except httplib.HTTPException, e:
                 form.errors['__all__'] = 'Unable to reach Phabricator host: %s' % (e.reason,)
             else:
