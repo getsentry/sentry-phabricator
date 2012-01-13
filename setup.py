@@ -3,6 +3,9 @@
 sentry-phabricator
 ==================
 
+An extension for Sentry which integrates with Phabricator. Specifically, it allows you to easily create
+Maniphest tickets from events within Sentry.
+
 :copyright: (c) 2011 by the Sentry Team, see AUTHORS for more details.
 :license: BSD, see LICENSE for more details.
 """
@@ -21,7 +24,7 @@ install_requires = [
 
 setup(
     name='sentry-phabricator',
-    version='0.1',
+    version='0.2',
     author='David Cramer',
     author_email='dcramer@gmail.com',
     url='http://github.com/dcramer/sentry-phabricator',

@@ -56,6 +56,7 @@ class CreateManiphestTask(Plugin):
 
     def configure(self, project):
         # check all options are set
+        self._cache = {}
         prefix = self.get_conf_key()
         Plugin.configure(self, project)
         config = {}
@@ -127,9 +128,12 @@ class CreateManiphestTask(Plugin):
 
         return self.render('sentry_phabricator/create_maniphest_task.html', context)
 
-    def tags(self, group, tag_list, **kwargs):
+    def before_events(self, event_list, **kwargs):
         prefix = self.get_conf_key()
-        task_id = GroupMeta.objects.get_value(group, '%s:tid' % prefix, None)
+        self._cache = GroupMeta.objects.get_value_bulk(event_list, '%s:tid' % prefix)
+
+    def tags(self, group, tag_list, **kwargs):
+        task_id = self._cache.get(group.pk)
         if task_id:
             tag_list.append(mark_safe('<a href="%s">T%s</a>' % (
                 urlparse.urljoin(self.config['host'], 'T%s' % task_id),
