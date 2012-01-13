@@ -111,7 +111,7 @@ class CreateManiphestTask(Plugin):
     def tags(self, group, tag_list, **kwargs):
         task_id = GroupMeta.objects.get_value(group, 'phabricator:tid', None)
         if task_id:
-            tag_list.append(mark_safe('<a href="%s">#%s</a>' % (
+            tag_list.append(mark_safe('<a href="%s">T%s</a>' % (
                 'http://%s/issues/%s' % (self.config['host'], task_id),
                 task_id,
             )))
