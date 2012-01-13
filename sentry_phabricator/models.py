@@ -13,10 +13,10 @@ from django.utils.safestring import mark_safe
 
 from sentry.models import GroupMeta, ProjectOption
 from sentry.plugins import Plugin
-from sentry.utils import json
 
 import httplib
 import phabricator
+import urlparse
 
 
 class ManiphestTaskForm(forms.Form):
@@ -27,7 +27,7 @@ class ManiphestTaskForm(forms.Form):
 
 
 class PhabricatorOptionsForm(forms.Form):
-    host = forms.URLField()
+    host = forms.URLField(help_text="e.g. http://secure.phabricator.org")
     username = forms.CharField(widget=forms.TextInput(attrs={'class': 'span10'}))
     certificate = forms.CharField(widget=forms.Textarea(attrs={'class': 'span10'}))
 
@@ -51,7 +51,11 @@ class CreateManiphestTask(Plugin):
                 return
             config[option] = value
         self.config = config
-        self.api = phabricator.Phabricator(**config)
+        self.api = phabricator.Phabricator(
+            host=urlparse.urljoin(config['host'], 'api'),
+            certificate=config['certificate'],
+            username=config['username'],
+        )
 
     def actions(self, group, action_list, **kwargs):
         prefix = self.get_conf_key()
@@ -90,7 +94,7 @@ class CreateManiphestTask(Plugin):
         if form.is_valid():
             api = self.api
             try:
-                response = api.maniphest.createtask(
+                data = api.maniphest.createtask(
                     title=form.cleaned_data['title'],
                     description=form.cleaned_data['description'],
                 )
@@ -106,11 +110,10 @@ class CreateManiphestTask(Plugin):
                 #                 form.errors['__all__'] += '; %s: %s' % (k, v)
                 # else:
                 form.errors['__all__'] = 'Bad response from Phabricator: %s %s' % (e.code, e.msg)
-            except httplib.HTTPError, e:
+            except httplib.HTTPException, e:
                 form.errors['__all__'] = 'Unable to reach Phabricator host: %s' % (e.reason,)
             else:
-                data = json.loads(response)
-                GroupMeta.objects.set_value(group, '%s:tid' % prefix, data['issue']['id'])
+                GroupMeta.objects.set_value(group, '%s:tid' % prefix, data['id'])
                 return self.redirect(reverse('sentry-group', args=[group.project_id, group.pk]))
 
         context = {
@@ -125,7 +128,7 @@ class CreateManiphestTask(Plugin):
         task_id = GroupMeta.objects.get_value(group, '%s:tid' % prefix, None)
         if task_id:
             tag_list.append(mark_safe('<a href="%s">T%s</a>' % (
-                'http://%s/issues/%s' % (self.config['host'], task_id),
+                urlparse.urljoin(self.config['host'], 'T%s' % task_id),
                 task_id,
             )))
         return tag_list
