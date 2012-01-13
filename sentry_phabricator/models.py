@@ -26,16 +26,26 @@ class ManiphestTaskForm(forms.Form):
     # projects = forms.CharField()
 
 
+class PhabricatorOptionsForm(forms.Form):
+    host = forms.URLField()
+    username = forms.CharField(widget=forms.TextInput(attrs={'class': 'span10'}))
+    certificate = forms.CharField(widget=forms.Textarea(attrs={'class': 'span10'}))
+
+
 class CreateManiphestTask(Plugin):
-    title = 'Create Maniphest Task'
+    title = 'Phabricator'
+    conf_title = 'Phabricator'
+    conf_key = 'phabricator'
+    project_conf_form = PhabricatorOptionsForm
 
     def configure(self, project):
         # check all options are set
+        prefix = self.get_conf_key()
         Plugin.configure(self, project)
         config = {}
         for option in ('host', 'certificate', 'username'):
             try:
-                value = ProjectOption.objects.get_value(project, 'phabricator:%s' % option)
+                value = ProjectOption.objects.get_value(project, '%s:%s' % (prefix, option))
             except KeyError:
                 self.enabled = False
                 return
@@ -44,8 +54,9 @@ class CreateManiphestTask(Plugin):
         self.api = phabricator.Phabricator(**config)
 
     def actions(self, group, action_list, **kwargs):
-        if not GroupMeta.objects.get_value(group, 'phabricator:tid', None):
-            action_list.append((self.title, self.get_url(group)))
+        prefix = self.get_conf_key()
+        if not GroupMeta.objects.get_value(group, '%s:tid' % prefix, None):
+            action_list.append(('Create Maniphest Task', self.get_url(group)))
         return action_list
 
     def _get_group_body(self, group, event, **kwargs):
@@ -70,6 +81,7 @@ class CreateManiphestTask(Plugin):
         return event.error()
 
     def view(self, group, **kwargs):
+        prefix = self.get_conf_key()
         event = group.get_latest_event()
         form = ManiphestTaskForm(self.request.POST or None, initial={
             'description': self._get_group_description(group, event),
@@ -98,7 +110,7 @@ class CreateManiphestTask(Plugin):
                 form.errors['__all__'] = 'Unable to reach Phabricator host: %s' % (e.reason,)
             else:
                 data = json.loads(response)
-                GroupMeta.objects.set_value(group, 'phabricator:tid', data['issue']['id'])
+                GroupMeta.objects.set_value(group, '%s:tid' % prefix, data['issue']['id'])
                 return self.redirect(reverse('sentry-group', args=[group.project_id, group.pk]))
 
         context = {
@@ -109,7 +121,8 @@ class CreateManiphestTask(Plugin):
         return self.render('sentry_phabricator/create_maniphest_task.html', context)
 
     def tags(self, group, tag_list, **kwargs):
-        task_id = GroupMeta.objects.get_value(group, 'phabricator:tid', None)
+        prefix = self.get_conf_key()
+        task_id = GroupMeta.objects.get_value(group, '%s:tid' % prefix, None)
         if task_id:
             tag_list.append(mark_safe('<a href="%s">T%s</a>' % (
                 'http://%s/issues/%s' % (self.config['host'], task_id),
