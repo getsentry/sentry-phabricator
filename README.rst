@@ -2,7 +2,7 @@ sentry-phabricator
 ==================
 
 An extension for Sentry which integrates with Phabricator. Specifically, it allows you to easily create
-Maniphest tickets from events within Sentry.
+Maniphest tasks from events within Sentry.
 
 
 Install
@@ -27,4 +27,4 @@ Go to your project's configuration page (Projects -> [Project]) and select the
 Phabricator tab. Enter the required credentials and click save changes.
 
 You'll now see a new action on groups which allows quick creation of Maniphest
-Tickets.
+tasks.

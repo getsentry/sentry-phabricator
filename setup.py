@@ -4,7 +4,7 @@ sentry-phabricator
 ==================
 
 An extension for Sentry which integrates with Phabricator. Specifically, it allows you to easily create
-Maniphest tickets from events within Sentry.
+Maniphest tasks from events within Sentry.
 
 :copyright: (c) 2011 by the Sentry Team, see AUTHORS for more details.
 :license: BSD, see LICENSE for more details.
