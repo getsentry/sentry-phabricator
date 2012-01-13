@@ -71,10 +71,8 @@ class CreateManiphestTask(Plugin):
 
     def _get_group_description(self, group, event):
         output = [
-            'Event:',
             self.request.build_absolute_uri(group.get_absolute_url()),
             '',
-            'Details:',
             '```',
             self._get_group_body(group, event),
             '```',
