@@ -46,6 +46,7 @@ class PhabricatorOptionsForm(forms.Form):
             raise forms.ValidationError('Unable to reach Phabricator host: %s' % (e,))
         except Exception, e:
             raise forms.ValidationError('Unhandled error from Phabricator: %s' % (e,))
+        return config
 
 
 class CreateManiphestTask(Plugin):
