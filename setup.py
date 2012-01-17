@@ -24,7 +24,7 @@ install_requires = [
 
 setup(
     name='sentry-phabricator',
-    version='0.2.1',
+    version='0.2.2',
     author='David Cramer',
     author_email='dcramer@gmail.com',
     url='http://github.com/dcramer/sentry-phabricator',
@@ -38,11 +38,6 @@ setup(
     extras_require={'test': tests_require},
     test_suite='runtests.runtests',
     include_package_data=True,
-    entry_points={
-        'console_scripts': [
-            'sentry = sentry.scripts.runner:main',
-        ],
-    },
     classifiers=[
         'Framework :: Django',
         'Intended Audience :: Developers',
