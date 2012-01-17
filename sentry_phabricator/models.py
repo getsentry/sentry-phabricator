@@ -111,8 +111,8 @@ class CreateManiphestTask(Plugin):
             api = self.api
             try:
                 data = api.maniphest.createtask(
-                    title=form.cleaned_data['title'],
-                    description=form.cleaned_data['description'],
+                    title=form.cleaned_data['title'].encode('utf-8'),
+                    description=form.cleaned_data['description'].encode('utf-8'),
                 )
             except phabricator.APIError, e:
                 form.errors['__all__'] = '%s %s' % (e.code, e.message)
