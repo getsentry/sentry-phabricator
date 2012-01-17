@@ -43,7 +43,7 @@ class PhabricatorOptionsForm(forms.Form):
         except phabricator.APIError, e:
             raise forms.ValidationError('%s %s' % (e.code, e.message))
         except httplib.HTTPException, e:
-            raise forms.ValidationError('Unable to reach Phabricator host: %s' % (e.reason,))
+            raise forms.ValidationError('Unable to reach Phabricator host: %s' % (e,))
         except Exception, e:
             raise forms.ValidationError('Unhandled error from Phabricator: %s' % (e,))
 
