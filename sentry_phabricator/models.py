@@ -55,7 +55,26 @@ class CreateManiphestTask(Plugin):
     conf_key = 'phabricator'
     project_conf_form = PhabricatorOptionsForm
 
-    def configure(self, project):
+    def _get_group_body(self, request, group, event, **kwargs):
+        interface = event.interfaces.get('sentry.interfaces.Stacktrace')
+        if interface:
+            return interface.to_string(event)
+        return
+
+    def _get_group_description(self, request, group, event):
+        output = [
+            request.build_absolute_uri(group.get_absolute_url()),
+            '',
+            '```',
+            self._get_group_body(request, group, event),
+            '```',
+        ]
+        return '\n'.join(output)
+
+    def _get_group_title(self, request, group, event):
+        return event.error()
+
+    def configure(self, project, **kwargs):
         # check all options are set
         self._cache = {}
         prefix = self.get_conf_key()
@@ -75,37 +94,18 @@ class CreateManiphestTask(Plugin):
             certificate=config['certificate'],
         )
 
-    def actions(self, group, action_list, **kwargs):
+    def actions(self, request, group, action_list, **kwargs):
         prefix = self.get_conf_key()
         if not GroupMeta.objects.get_value(group, '%s:tid' % prefix, None):
             action_list.append(('Create Maniphest Task', self.get_url(group)))
         return action_list
 
-    def _get_group_body(self, group, event, **kwargs):
-        interface = event.interfaces.get('sentry.interfaces.Stacktrace')
-        if interface:
-            return interface.to_string(event)
-        return
-
-    def _get_group_description(self, group, event):
-        output = [
-            self.request.build_absolute_uri(group.get_absolute_url()),
-            '',
-            '```',
-            self._get_group_body(group, event),
-            '```',
-        ]
-        return '\n'.join(output)
-
-    def _get_group_title(self, group, event):
-        return event.error()
-
-    def view(self, group, **kwargs):
+    def view(self, request, group, **kwargs):
         prefix = self.get_conf_key()
         event = group.get_latest_event()
-        form = ManiphestTaskForm(self.request.POST or None, initial={
-            'description': self._get_group_description(group, event),
-            'title': self._get_group_title(group, event),
+        form = ManiphestTaskForm(request.POST or None, initial={
+            'description': self._get_group_description(request, group, event),
+            'title': self._get_group_title(request, group, event),
         })
         if form.is_valid():
             api = self.api
@@ -125,15 +125,15 @@ class CreateManiphestTask(Plugin):
         context = {
             'form': form,
         }
-        context.update(csrf(self.request))
+        context.update(csrf(request))
 
         return self.render('sentry_phabricator/create_maniphest_task.html', context)
 
-    def before_events(self, event_list, **kwargs):
+    def before_events(self, request, event_list, **kwargs):
         prefix = self.get_conf_key()
         self._cache = GroupMeta.objects.get_value_bulk(event_list, '%s:tid' % prefix)
 
-    def tags(self, group, tag_list, **kwargs):
+    def tags(self, request, group, tag_list, **kwargs):
         task_id = self._cache.get(group.pk)
         if task_id:
             tag_list.append(mark_safe('<a href="%s">T%s</a>' % (
