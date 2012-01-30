@@ -1,0 +1,14 @@
+{% extends "sentry/groups/details.html" %}
+
+{% load i18n %}
+
+{% block title %}{% trans "Create Maniphest Task" %} | {{ block.super }}{% endblock %}
+
+{% block inner %}
+    <div class="span12">
+        <div class="page-header">
+            <h3>Create Maniphest Task</h3>
+        </div>
+        <div class="alert-message error">{% trans "You have not yet configured Phabricator for this project." %}</div>
+    </div>
+{% endblock %}

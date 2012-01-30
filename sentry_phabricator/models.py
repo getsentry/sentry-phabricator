@@ -20,16 +20,16 @@ import urlparse
 
 
 class ManiphestTaskForm(forms.Form):
-    title = forms.CharField(max_length=200, widget=forms.TextInput(attrs={'class': 'span10'}))
-    description = forms.CharField(widget=forms.Textarea(attrs={'class': 'span10'}))
+    title = forms.CharField(max_length=200, widget=forms.TextInput(attrs={'class': 'span9'}))
+    description = forms.CharField(widget=forms.Textarea(attrs={'class': 'span9'}))
     # assigned_to = forms.CharField()
     # projects = forms.CharField()
 
 
 class PhabricatorOptionsForm(forms.Form):
     host = forms.URLField(help_text="e.g. http://secure.phabricator.org")
-    username = forms.CharField(widget=forms.TextInput(attrs={'class': 'span10'}))
-    certificate = forms.CharField(widget=forms.Textarea(attrs={'class': 'span10'}))
+    username = forms.CharField(widget=forms.TextInput(attrs={'class': 'span9'}))
+    certificate = forms.CharField(widget=forms.Textarea(attrs={'class': 'span9'}))
 
     def clean(self):
         config = self.cleaned_data
@@ -55,6 +55,11 @@ class CreateManiphestTask(Plugin):
     conf_key = 'phabricator'
     project_conf_form = PhabricatorOptionsForm
 
+    def __init__(self, *args, **kwargs):
+        super(CreateManiphestTask, self).__init__(*args, **kwargs)
+        self._cache = {}
+        self._config = {}
+
     def _get_group_body(self, request, group, event, **kwargs):
         interface = event.interfaces.get('sentry.interfaces.Stacktrace')
         if interface:
@@ -74,21 +79,26 @@ class CreateManiphestTask(Plugin):
     def _get_group_title(self, request, group, event):
         return event.error()
 
-    def configure(self, project, **kwargs):
+    def is_configured(self, project):
+        return bool(self.get_config(project))
+
+    def get_config(self, project):
+        if project.pk not in self._config:
+            prefix = self.get_conf_key()
+            config = {}
+            for option in ('host', 'certificate', 'username'):
+                try:
+                    value = ProjectOption.objects.get_value(project, '%s:%s' % (prefix, option))
+                except KeyError:
+                    return {}
+                config[option] = value
+            self._config[project.pk] = config
+        return self._config[project.pk]
+
+    def get_api(self, project):
         # check all options are set
-        self._cache = {}
-        prefix = self.get_conf_key()
-        Plugin.configure(self, project)
-        config = {}
-        for option in ('host', 'certificate', 'username'):
-            try:
-                value = ProjectOption.objects.get_value(project, '%s:%s' % (prefix, option))
-            except KeyError:
-                self.enabled = False
-                return
-            config[option] = value
-        self.config = config
-        self.api = phabricator.Phabricator(
+        config = self.get_config(project)
+        return phabricator.Phabricator(
             host=urlparse.urljoin(config['host'], 'api/'),
             username=config['username'],
             certificate=config['certificate'],
@@ -101,6 +111,9 @@ class CreateManiphestTask(Plugin):
         return action_list
 
     def view(self, request, group, **kwargs):
+        if not self.is_configured(group.project):
+            return self.render('sentry_phabricator/not_configured.html')
+
         prefix = self.get_conf_key()
         event = group.get_latest_event()
         form = ManiphestTaskForm(request.POST or None, initial={
@@ -108,7 +121,7 @@ class CreateManiphestTask(Plugin):
             'title': self._get_group_title(request, group, event),
         })
         if form.is_valid():
-            api = self.api
+            api = self.get_api(group.project)
             try:
                 data = api.maniphest.createtask(
                     title=form.cleaned_data['title'].encode('utf-8'),
@@ -134,10 +147,14 @@ class CreateManiphestTask(Plugin):
         self._cache = GroupMeta.objects.get_value_bulk(event_list, '%s:tid' % prefix)
 
     def tags(self, request, group, tag_list, **kwargs):
+        try:
+            host = self.get_config(group.project)['host']
+        except KeyError:
+            return
         task_id = self._cache.get(group.pk)
         if task_id:
             tag_list.append(mark_safe('<a href="%s">T%s</a>' % (
-                urlparse.urljoin(self.config['host'], 'T%s' % task_id),
+                urlparse.urljoin(host, 'T%s' % task_id),
                 task_id,
             )))
         return tag_list
