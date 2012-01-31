@@ -154,7 +154,7 @@ class CreateManiphestTask(Plugin):
         try:
             host = self.get_config(group.project)['host']
         except KeyError:
-            return
+            return []
         task_id = self._cache.get(group.pk)
         if task_id:
             tag_list.append(mark_safe('<a href="%s">T%s</a>' % (
