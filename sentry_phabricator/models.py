@@ -69,11 +69,15 @@ class CreateManiphestTask(Plugin):
     def _get_group_description(self, request, group, event):
         output = [
             request.build_absolute_uri(group.get_absolute_url()),
-            '',
-            '```',
-            self._get_group_body(request, group, event),
-            '```',
         ]
+        body = self._get_group_body(request, group, event)
+        if body:
+            output.extend([
+                '',
+                '```',
+                body,
+                '```',
+            ])
         return '\n'.join(output)
 
     def _get_group_title(self, request, group, event):
