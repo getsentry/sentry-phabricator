@@ -11,8 +11,8 @@ from django.core.context_processors import csrf
 from django.core.urlresolvers import reverse
 from django.utils.safestring import mark_safe
 
-from sentry.models import GroupMeta, ProjectOption
-from sentry.plugins import Plugin
+from sentry.models import GroupMeta
+from sentry.plugins import Plugin, register
 
 import httplib
 import phabricator
@@ -49,6 +49,7 @@ class PhabricatorOptionsForm(forms.Form):
         return config
 
 
+@register
 class CreateManiphestTask(Plugin):
     title = 'Phabricator'
     conf_title = 'Phabricator'
@@ -84,28 +85,14 @@ class CreateManiphestTask(Plugin):
         return event.error()
 
     def is_configured(self, project):
-        return bool(self.get_config(project))
-
-    def get_config(self, project):
-        if project.pk not in self._config:
-            prefix = self.get_conf_key()
-            config = {}
-            for option in ('host', 'certificate', 'username'):
-                try:
-                    value = ProjectOption.objects.get_value(project, '%s:%s' % (prefix, option))
-                except KeyError:
-                    return {}
-                config[option] = value
-            self._config[project.pk] = config
-        return self._config[project.pk]
+        return all((self.get_option(k, project) for k in ('host', 'username', 'certificat')))
 
     def get_api(self, project):
         # check all options are set
-        config = self.get_config(project)
         return phabricator.Phabricator(
-            host=urlparse.urljoin(config['host'], 'api/'),
-            username=config['username'],
-            certificate=config['certificate'],
+            host=urlparse.urljoin(self.get_option('host', project), 'api/'),
+            username=self.get_option('username', project),
+            certificate=self.get_option('certificate', project),
         )
 
     def actions(self, request, group, action_list, **kwargs):
@@ -151,10 +138,10 @@ class CreateManiphestTask(Plugin):
         self._cache = GroupMeta.objects.get_value_bulk(event_list, '%s:tid' % prefix)
 
     def tags(self, request, group, tag_list, **kwargs):
-        try:
-            host = self.get_config(group.project)['host']
-        except KeyError:
-            return []
+        host = self.get_option('host', group.project)
+        if not host:
+            return tag_list
+
         task_id = self._cache.get(group.pk)
         if task_id:
             tag_list.append(mark_safe('<a href="%s">T%s</a>' % (
