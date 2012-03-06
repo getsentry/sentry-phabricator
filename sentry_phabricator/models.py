@@ -85,7 +85,7 @@ class CreateManiphestTask(Plugin):
         return event.error()
 
     def is_configured(self, project):
-        return all((self.get_option(k, project) for k in ('host', 'username', 'certificat')))
+        return all((self.get_option(k, project) for k in ('host', 'username', 'certificate')))
 
     def get_api(self, project):
         # check all options are set
