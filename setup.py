@@ -18,13 +18,13 @@ tests_require = [
 
 install_requires = [
     'sentry>=2.9.0',
-    'python-phabricator',
+    'phabricator>=0.1.1',
     # https://github.com/disqus/python-phabricator/zipball/master
 ]
 
 setup(
     name='sentry-phabricator',
-    version='0.5.1',
+    version='0.5.2',
     author='David Cramer',
     author_email='dcramer@gmail.com',
     url='http://github.com/dcramer/sentry-phabricator',
