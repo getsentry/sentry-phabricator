@@ -10,12 +10,14 @@ from django import forms
 from django.core.context_processors import csrf
 from django.core.urlresolvers import reverse
 from django.utils.safestring import mark_safe
+from django.utils.translation import ugettext_lazy as _
 
 from sentry.models import GroupMeta
 from sentry.plugins import Plugin, register
 
 import httplib
 import phabricator
+import sentry_phabricator
 import urlparse
 
 
@@ -27,7 +29,7 @@ class ManiphestTaskForm(forms.Form):
 
 
 class PhabricatorOptionsForm(forms.Form):
-    host = forms.URLField(help_text="e.g. http://secure.phabricator.org")
+    host = forms.URLField(help_text=_("e.g. http://secure.phabricator.org"))
     username = forms.CharField(widget=forms.TextInput(attrs={'class': 'span9'}))
     certificate = forms.CharField(widget=forms.Textarea(attrs={'class': 'span9'}))
 
@@ -51,7 +53,12 @@ class PhabricatorOptionsForm(forms.Form):
 
 @register
 class CreateManiphestTask(Plugin):
-    title = 'Phabricator'
+    author = 'DISQUS'
+    author_url = 'https://github.com/disqus/sentry-phabricator'
+    version = sentry_phabricator.VERSION
+
+    slug = 'phabricator'
+    title = _('Phabricator')
     conf_title = 'Phabricator'
     conf_key = 'phabricator'
     project_conf_form = PhabricatorOptionsForm

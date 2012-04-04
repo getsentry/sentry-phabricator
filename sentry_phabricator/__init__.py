@@ -6,3 +6,8 @@ sentry_phabricator
 :license: BSD, see LICENSE for more details.
 """
 
+try:
+    VERSION = __import__('pkg_resources') \
+        .get_distribution('sentry-phabricator').version
+except Exception, e:
+    VERSION = 'unknown'
