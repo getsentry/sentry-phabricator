@@ -66,7 +66,6 @@ class CreateManiphestTask(Plugin):
     def __init__(self, *args, **kwargs):
         super(CreateManiphestTask, self).__init__(*args, **kwargs)
         self._cache = {}
-        self._config = {}
 
     def _get_group_body(self, request, group, event, **kwargs):
         interface = event.interfaces.get('sentry.interfaces.Stacktrace')
