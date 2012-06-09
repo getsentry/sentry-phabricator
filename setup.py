@@ -17,14 +17,13 @@ tests_require = [
 ]
 
 install_requires = [
-    'sentry>=3.8.0',
+    'sentry>=4.6.0',
     'phabricator>=0.1.1',
-    # https://github.com/disqus/python-phabricator/zipball/master
 ]
 
 setup(
     name='sentry-phabricator',
-    version='0.5.3',
+    version='0.6.0',
     author='David Cramer',
     author_email='dcramer@gmail.com',
     url='http://github.com/dcramer/sentry-phabricator',
@@ -38,6 +37,11 @@ setup(
     extras_require={'test': tests_require},
     test_suite='runtests.runtests',
     include_package_data=True,
+    entry_points={
+       'sentry.plugins': [
+            'phabricator = sentry_phabricator.plugin:PhabricatorPlugin'
+        ],
+    },
     classifiers=[
         'Framework :: Django',
         'Intended Audience :: Developers',
