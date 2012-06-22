@@ -35,6 +35,8 @@ class PhabricatorOptionsForm(forms.Form):
 
     def clean(self):
         config = self.cleaned_data
+        if not all(config.get(k) for k in ('host', 'username', 'certificate')):
+            raise forms.ValidationError('Missing required configuration value')
         api = phabricator.Phabricator(
             host=urlparse.urljoin(config['host'], 'api/'),
             username=config['username'],

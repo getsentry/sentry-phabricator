@@ -17,13 +17,13 @@ tests_require = [
 ]
 
 install_requires = [
-    'sentry>=4.6.0',
+    'sentry>=4.7.8',
     'phabricator>=0.1.1',
 ]
 
 setup(
     name='sentry-phabricator',
-    version='0.6.0',
+    version='0.6.1',
     author='David Cramer',
     author_email='dcramer@gmail.com',
     url='http://github.com/dcramer/sentry-phabricator',
@@ -38,6 +38,9 @@ setup(
     test_suite='runtests.runtests',
     include_package_data=True,
     entry_points={
+       'sentry.apps': [
+            'phabricator = sentry_phabricator',
+        ],
        'sentry.plugins': [
             'phabricator = sentry_phabricator.plugin:PhabricatorPlugin'
         ],
