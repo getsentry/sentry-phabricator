@@ -13,12 +13,12 @@ from setuptools import setup, find_packages
 
 
 tests_require = [
-    'nose==1.1.2',
+    'nose',
 ]
 
 install_requires = [
-    'sentry>=4.7.8',
-    'phabricator>=0.1.1',
+    'sentry>=4.9.8',
+    'phabricator>=0.2.0',
 ]
 
 setup(

@@ -7,25 +7,14 @@ sentry_phabricator.plugin
 """
 
 from django import forms
-from django.core.context_processors import csrf
-from django.core.urlresolvers import reverse
-from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
-from sentry.models import GroupMeta
-from sentry.plugins import Plugin
+from sentry.plugins.bases.issue import IssuePlugin
 
 import httplib
 import phabricator
 import sentry_phabricator
 import urlparse
-
-
-class ManiphestTaskForm(forms.Form):
-    title = forms.CharField(max_length=200, widget=forms.TextInput(attrs={'class': 'span9'}))
-    description = forms.CharField(widget=forms.Textarea(attrs={'class': 'span9'}))
-    # assigned_to = forms.CharField()
-    # projects = forms.CharField()
 
 
 class PhabricatorOptionsForm(forms.Form):
@@ -53,7 +42,7 @@ class PhabricatorOptionsForm(forms.Form):
         return config
 
 
-class PhabricatorPlugin(Plugin):
+class PhabricatorPlugin(IssuePlugin):
     author = 'DISQUS'
     author_url = 'https://github.com/disqus/sentry-phabricator'
     version = sentry_phabricator.VERSION
@@ -102,57 +91,23 @@ class PhabricatorPlugin(Plugin):
             certificate=self.get_option('certificate', project),
         )
 
-    def actions(self, request, group, action_list, **kwargs):
-        prefix = self.get_conf_key()
-        if not GroupMeta.objects.get_value(group, '%s:tid' % prefix, None):
-            action_list.append(('Create Maniphest Task', self.get_url(group)))
-        return action_list
+    def get_new_issue_title(self):
+        return 'Create Maniphest Task'
 
-    def view(self, request, group, **kwargs):
-        if not self.is_configured(group.project):
-            return self.render('sentry_phabricator/not_configured.html')
+    def create_issue(self, group, form_data):
+        api = self.get_api(group.project)
+        try:
+            data = api.maniphest.createtask(
+                title=form_data['title'].encode('utf-8'),
+                description=form_data['description'].encode('utf-8'),
+            )
+        except phabricator.APIError, e:
+            raise forms.ValidationError('%s %s' % (e.code, e.message))
+        except httplib.HTTPException, e:
+            raise forms.ValidationError('Unable to reach Phabricator host: %s' % (e.reason,))
 
-        prefix = self.get_conf_key()
-        event = group.get_latest_event()
-        form = ManiphestTaskForm(request.POST or None, initial={
-            'description': self._get_group_description(request, group, event),
-            'title': self._get_group_title(request, group, event),
-        })
-        if form.is_valid():
-            api = self.get_api(group.project)
-            try:
-                data = api.maniphest.createtask(
-                    title=form.cleaned_data['title'].encode('utf-8'),
-                    description=form.cleaned_data['description'].encode('utf-8'),
-                )
-            except phabricator.APIError, e:
-                form.errors['__all__'] = '%s %s' % (e.code, e.message)
-            except httplib.HTTPException, e:
-                form.errors['__all__'] = 'Unable to reach Phabricator host: %s' % (e.reason,)
-            else:
-                GroupMeta.objects.set_value(group, '%s:tid' % prefix, data['id'])
-                return self.redirect(reverse('sentry-group', args=[group.project_id, group.pk]))
+        return data['id']
 
-        context = {
-            'form': form,
-        }
-        context.update(csrf(request))
-
-        return self.render('sentry_phabricator/create_maniphest_task.html', context)
-
-    def before_events(self, request, event_list, **kwargs):
-        prefix = self.get_conf_key()
-        self._cache = GroupMeta.objects.get_value_bulk(event_list, '%s:tid' % prefix)
-
-    def tags(self, request, group, tag_list, **kwargs):
+    def get_issue_url(self, group, issue_id):
         host = self.get_option('host', group.project)
-        if not host:
-            return tag_list
-
-        task_id = self._cache.get(group.pk)
-        if task_id:
-            tag_list.append(mark_safe('<a href="%s">T%s</a>' % (
-                urlparse.urljoin(host, 'T%s' % task_id),
-                task_id,
-            )))
-        return tag_list
+        return urlparse.urljoin(host, 'T%s' % issue_id)
