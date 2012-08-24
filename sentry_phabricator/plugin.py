@@ -44,7 +44,7 @@ class PhabricatorOptionsForm(forms.Form):
 
 class PhabricatorPlugin(IssuePlugin):
     author = 'DISQUS'
-    author_url = 'https://github.com/disqus/sentry-phabricator'
+    author_url = 'https://github.com/getsentry/sentry-phabricator'
     version = sentry_phabricator.VERSION
 
     slug = 'phabricator'
