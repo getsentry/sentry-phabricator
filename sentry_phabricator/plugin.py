@@ -53,33 +53,6 @@ class PhabricatorPlugin(IssuePlugin):
     conf_key = 'phabricator'
     project_conf_form = PhabricatorOptionsForm
 
-    def __init__(self, *args, **kwargs):
-        super(PhabricatorPlugin, self).__init__(*args, **kwargs)
-        self._cache = {}
-
-    def _get_group_body(self, request, group, event, **kwargs):
-        interface = event.interfaces.get('sentry.interfaces.Stacktrace')
-        if interface:
-            return interface.to_string(event)
-        return
-
-    def _get_group_description(self, request, group, event):
-        output = [
-            request.build_absolute_uri(group.get_absolute_url()),
-        ]
-        body = self._get_group_body(request, group, event)
-        if body:
-            output.extend([
-                '',
-                '```',
-                body,
-                '```',
-            ])
-        return '\n'.join(output)
-
-    def _get_group_title(self, request, group, event):
-        return event.error()
-
     def is_configured(self, project):
         return all((self.get_option(k, project) for k in ('host', 'username', 'certificate')))
 
