@@ -53,9 +53,6 @@ class PhabricatorPlugin(IssuePlugin):
     conf_key = 'phabricator'
     project_conf_form = PhabricatorOptionsForm
 
-    def is_configured(self, project):
-        return all((self.get_option(k, project) for k in ('host', 'username', 'certificate')))
-
     def get_api(self, project):
         # check all options are set
         return phabricator.Phabricator(
@@ -64,10 +61,13 @@ class PhabricatorPlugin(IssuePlugin):
             certificate=self.get_option('certificate', project),
         )
 
-    def get_new_issue_title(self):
+    def is_configured(self, project, **kwargs):
+        return all((self.get_option(k, project) for k in ('host', 'username', 'certificate')))
+
+    def get_new_issue_title(self, **kwargs):
         return 'Create Maniphest Task'
 
-    def create_issue(self, group, form_data):
+    def create_issue(self, group, form_data, **kwargs):
         api = self.get_api(group.project)
         try:
             data = api.maniphest.createtask(
@@ -81,6 +81,6 @@ class PhabricatorPlugin(IssuePlugin):
 
         return data['id']
 
-    def get_issue_url(self, group, issue_id):
+    def get_issue_url(self, group, issue_id, **kwargs):
         host = self.get_option('host', group.project)
         return urlparse.urljoin(host, 'T%s' % issue_id)
