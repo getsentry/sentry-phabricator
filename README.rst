@@ -12,16 +12,11 @@ Install the package via ``pip``::
 
     pip install sentry-phabricator
 
-Add ``sentry_phabricator`` to your ``INSTALLED_APPS``::
-
-    INSTALLED_APPS = (
-        # ...
-        'sentry',
-        'sentry_phabricator',
-    )
-
 Configuration
 -------------
+
+Create a user within your Phabricator install (a system agent). This user will
+be creating tickets on your behalf via Sentry.
 
 Go to your project's configuration page (Projects -> [Project]) and select the
 Phabricator tab. Enter the required credentials and click save changes.
