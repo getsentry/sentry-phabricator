@@ -46,6 +46,11 @@ class PhabricatorPlugin(IssuePlugin):
     author = 'DISQUS'
     author_url = 'https://github.com/getsentry/sentry-phabricator'
     version = sentry_phabricator.VERSION
+    description = "Integrate Phabricator issue tracking by linking a user account to a project."
+    resource_links = [
+        ('Bug Tracker', 'https://github.com/getsentry/sentry-phabricator/issues'),
+        ('Source', 'https://github.com/getsentry/sentry-phabricator'),
+    ]
 
     slug = 'phabricator'
     title = _('Phabricator')
