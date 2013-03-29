@@ -18,7 +18,7 @@ tests_require = [
 
 install_requires = [
     'sentry>=4.9.8',
-    'phabricator>=0.2.0',
+    'phabricator>=0.3.0,<1.0',
 ]
 
 setup(
