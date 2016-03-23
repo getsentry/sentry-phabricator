@@ -3,10 +3,10 @@
 sentry-phabricator
 ==================
 
-An extension for Sentry which integrates with Phabricator. Specifically, it allows you to easily create
-Maniphest tasks from events within Sentry.
+An extension for Sentry which integrates with Phabricator. Specifically, it
+allows you to easily create Maniphest tasks from events within Sentry.
 
-:copyright: (c) 2011 by the Sentry Team, see AUTHORS for more details.
+:copyright: (c) 2016 by the Sentry Team, see AUTHORS for more details.
 :license: BSD, see LICENSE for more details.
 """
 from setuptools import setup, find_packages
