@@ -19,17 +19,31 @@ import urlparse
 
 class PhabricatorOptionsForm(forms.Form):
     host = forms.URLField(help_text=_("e.g. http://secure.phabricator.org"))
-    username = forms.CharField(widget=forms.TextInput(attrs={'class': 'span9'}))
-    certificate = forms.CharField(widget=forms.Textarea(attrs={'class': 'span9'}))
+    token = forms.CharField(
+        widget=forms.TextInput(attrs={'class': 'span9'}),
+        help_text='You may generate a Conduit API Token from your account settings in Phabricator.',
+        required=False)
+    username = forms.CharField(
+        widget=forms.TextInput(attrs={'class': 'span9'}),
+        help_text='For token-based authentication you do not need to fill in username.',
+        required=False)
+    certificate = forms.CharField(
+        widget=forms.Textarea(attrs={'class': 'span9'}),
+        help_text='For token-based authentication you do not need to fill in certificate.',
+        required=False)
 
     def clean(self):
         config = self.cleaned_data
-        if not all(config.get(k) for k in ('host', 'username', 'certificate')):
+        if not config.get('host'):
             raise forms.ValidationError('Missing required configuration value')
+        if not config.get('token') or (config.get('username') and config.get('certificate')):
+            raise forms.ValidationError('Missing required configuration value')
+
         api = phabricator.Phabricator(
             host=urlparse.urljoin(config['host'], 'api/'),
             username=config['username'],
             certificate=config['certificate'],
+            token=config['token'],
         )
         try:
             api.user.whoami()
@@ -64,10 +78,17 @@ class PhabricatorPlugin(IssuePlugin):
             host=urlparse.urljoin(self.get_option('host', project), 'api/'),
             username=self.get_option('username', project),
             certificate=self.get_option('certificate', project),
+            token=self.get_option('token', project),
         )
 
     def is_configured(self, project, **kwargs):
-        return all((self.get_option(k, project) for k in ('host', 'username', 'certificate')))
+        if not self.get_option('host', project):
+            return False
+        if self.get_option('token', project):
+            return True
+        if self.get_option('username', project) and self.get_option('certificate', project):
+            return True
+        return False
 
     def get_new_issue_title(self, **kwargs):
         return 'Create Maniphest Task'
