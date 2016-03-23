@@ -22,7 +22,7 @@ install_requires = [
 
 setup(
     name='sentry-phabricator',
-    version='0.6.2',
+    version='0.8.0.dev0',
     author='David Cramer',
     author_email='dcramer@gmail.com',
     url='http://github.com/getsentry/sentry-phabricator',
