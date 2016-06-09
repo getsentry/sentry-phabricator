@@ -35,9 +35,9 @@ class PhabricatorOptionsForm(forms.Form):
     def clean(self):
         config = self.cleaned_data
         if not config.get('host'):
-            raise forms.ValidationError('Missing required configuration value')
-        if not config.get('token') or (config.get('username') and config.get('certificate')):
-            raise forms.ValidationError('Missing required configuration value')
+            raise forms.ValidationError('Missing required host configuration value')
+        if not config.get('token') or not (config.get('username') and config.get('certificate')):
+            raise forms.ValidationError('Missing required authentication configuration value')
 
         api = phabricator.Phabricator(
             host=urlparse.urljoin(config['host'], 'api/'),
