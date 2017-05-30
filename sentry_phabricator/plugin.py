@@ -12,6 +12,7 @@ from django.utils.translation import ugettext_lazy as _
 from sentry.plugins.bases.issue import IssuePlugin
 
 import httplib
+import json
 import phabricator
 import sentry_phabricator
 import urlparse
@@ -31,6 +32,10 @@ class PhabricatorOptionsForm(forms.Form):
         widget=forms.Textarea(attrs={'class': 'span9'}),
         help_text='For token-based authentication you do not need to fill in certificate.',
         required=False)
+    projectPHIDs = forms.CharField(
+        widget=forms.Textarea(attrs={'class': 'span9'}),
+        help_text='Project PHIDs, use Conduit API /api/project.query to find appropriate values. e.g. ["PHID-PROJ-1", "PHID-PROJ-2"]',
+        required=False)
 
     def clean(self):
         config = self.cleaned_data
@@ -38,7 +43,12 @@ class PhabricatorOptionsForm(forms.Form):
             raise forms.ValidationError('Missing required host configuration value')
         if not (config.get('token') or (config.get('username') and config.get('certificate'))):
             raise forms.ValidationError('Missing required authentication configuration value')
-
+        projectPHIDs = config.get('projectPHIDs')
+        if projectPHIDs:
+            try:
+                json.loads(projectPHIDs)
+            except ValueError:
+                raise forms.ValidationError('projectPHIDs field must be a valid JSON if present')
         api = phabricator.Phabricator(
             host=urlparse.urljoin(config['host'], 'api/'),
             username=config['username'],
@@ -96,9 +106,13 @@ class PhabricatorPlugin(IssuePlugin):
     def create_issue(self, group, form_data, **kwargs):
         api = self.get_api(group.project)
         try:
+            phids = self.get_option('projectPHIDs', group.project)
+            if phids:
+                phids = json.loads(phids)
             data = api.maniphest.createtask(
                 title=form_data['title'].encode('utf-8'),
                 description=form_data['description'].encode('utf-8'),
+                projectPHIDs=phids,
             )
         except phabricator.APIError, e:
             raise forms.ValidationError('%s %s' % (e.code, e.message))
